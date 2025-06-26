@@ -1,11 +1,18 @@
-/*
-=====================================================================================================================
-
+*
+==============================================================================================================================
+	SCRIPT FOR CREATING THE TABLES FOR THE BRONZE LAYER
+==============================================================================================================================
+	Script purpose:
+		This script goes ahead to create the various tables required for the bronze layer.
+            	It first of all drops the individual tables IF they already exist, and then goes ahead to create each table.
+            	Our source system has 3 tables coming from the source 'crm' and also 3 tables coming from the source 'erp'.
+            	All the tables are in the CSV format.
 */
 
 
-
 use bronze;
+
+-- Creating the table 'cust_info'
 drop table if exists crm_cust_info;
 create table crm_cust_info (
 	cst_id int,
@@ -17,6 +24,7 @@ create table crm_cust_info (
 	cst_create_date date
 );
 
+-- Creating the table 'prd_info'
 drop table if exists crm_prd_info;
 create table crm_prd_info (
 	prd_id INT,
@@ -28,6 +36,7 @@ create table crm_prd_info (
 	prd_end_dt datetime
 );
 
+-- Creating the table 'sales_details'
 drop table if exists crm_sales_details;
 create table crm_sales_details (
 	sls_ord_num varchar(50),
@@ -40,6 +49,8 @@ create table crm_sales_details (
 	sls_quantity INT,
 	sls_price INT
 );
+
+-- Creating the table 'CUST_AZ12'
 drop table if exists erp_CUST_AZ12;
 create table erp_CUST_AZ12 (
 	CID varchar(50),
@@ -47,12 +58,14 @@ create table erp_CUST_AZ12 (
 	GEN varchar(50)
 );
 
+-- Creating the table 'LOC_A101'
 drop table if exists erp_LOC_A101;
 create table erp_LOC_A101 (
 	CID varchar(50),
 	CNTRY varchar(50)
 );
 
+-- Creating the table 'px_cat_G1_V2'
 drop table if exists erp_px_cat_G1_V2;
 create table erp_px_cat_G1_V2 (
 ID varchar(50),
