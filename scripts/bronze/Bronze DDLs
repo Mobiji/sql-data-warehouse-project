@@ -1,1 +1,75 @@
+*
+==============================================================================================================================
+	SCRIPT FOR CREATING THE TABLES FOR THE BRONZE LAYER
+==============================================================================================================================
+	Script purpose:
+		This script goes ahead to create the various tables required for the bronze layer.
+            	It first of all drops the individual tables IF they already exist, and then goes ahead to create each table.
+            	Our source system has 3 tables coming from the source 'crm' and also 3 tables coming from the source 'erp'.
+            	All the tables are in the CSV format.
+*/
 
+
+use bronze;
+
+-- Creating the table 'cust_info'
+drop table if exists crm_cust_info;
+create table crm_cust_info (
+	cst_id int,
+	cst_key varchar(50),
+	cst_firstname varchar(50),
+	cst_lastname varchar(50),
+	cst_marital_status varchar(50),
+	cst_gndr varchar(50),
+	cst_create_date date
+);
+
+-- Creating the table 'prd_info'
+drop table if exists crm_prd_info;
+create table crm_prd_info (
+	prd_id INT,
+	prd_key varchar(50),
+	prd_nm varchar(50),
+	prd_cost INT,
+	prd_line varchar(50),
+	prd_start_dt datetime,
+	prd_end_dt datetime
+);
+
+-- Creating the table 'sales_details'
+drop table if exists crm_sales_details;
+create table crm_sales_details (
+	sls_ord_num varchar(50),
+	sls_prd_key varchar(50),
+	sls_cust_id INT,
+	sls_order_dt INT,
+	sls_ship_dt INT,
+	sls_due_dt INT,
+	sls_sales INT,
+	sls_quantity INT,
+	sls_price INT
+);
+
+-- Creating the table 'CUST_AZ12'
+drop table if exists erp_CUST_AZ12;
+create table erp_CUST_AZ12 (
+	CID varchar(50),
+	BDATE date,
+	GEN varchar(50)
+);
+
+-- Creating the table 'LOC_A101'
+drop table if exists erp_LOC_A101;
+create table erp_LOC_A101 (
+	CID varchar(50),
+	CNTRY varchar(50)
+);
+
+-- Creating the table 'px_cat_G1_V2'
+drop table if exists erp_px_cat_G1_V2;
+create table erp_px_cat_G1_V2 (
+ID varchar(50),
+CAT varchar(50),
+SUBCAT varchar(50),
+MAINTENANCE varchar(50)
+);
