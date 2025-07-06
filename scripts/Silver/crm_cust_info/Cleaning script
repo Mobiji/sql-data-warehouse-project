@@ -1,12 +1,12 @@
 /*
 ========================================================================================================================================
-				CLEANING AND STANDARDIZING THE 'CRM_CUST_INFO' TABLE
+		CLEANING AND STANDARDIZING THE 'CRM_CUST_INFO' TABLE
 ========================================================================================================================================
 ----------------------------------------------------------------------------------------------------------------------------------------
-				Script Purpose:
-          The following queries are responsible for cleansing and standardizing the 'bronze.crm_cust_info' table.
-          Cleansing Operations include:
-						            - Handling leading and trailling spaces
+		Script Purpose:
+	          The following queries are responsible for cleansing and standardizing the 'bronze.crm_cust_info' table.
+	          Cleansing Operations include:
+		    	- Handling leading and trailling spaces
                         - Removing duplicates
                         - Data normalization/standardization
                         - Handling null values
@@ -39,7 +39,7 @@ where cst_id in (29433, 0, 29449, 29466, 29473, 29483);
 	the most recent create_date value. This means that we will keep these ones and filter out the older ones.*/
 
 select 	nullif(cst_id, 0) cst_id,
-		cst_key,
+	cst_key,
         cst_firstname,
         cst_lastname,
         cst_marital_status,
@@ -73,7 +73,7 @@ where cst_lastname != trim(cst_lastname);
 -- So, my latest 'insert into silver.crm_cust_info' query now looks like the following
 
 select 	nullif(cst_id, 0) cst_id,
-		    cst_key,
+    	cst_key,
         trim(cst_firstname) cst_firstname,
         trim(cst_lastname) cst_lastname,
         cst_marital_status,
@@ -102,17 +102,17 @@ from bronze.crm_cust_info;
 -- From the above queries, I see that there are blanks. These blanks I will replace with 'n/a'.
 
 select 	nullif(cst_id, 0) cst_id,
-		    cst_key,
+    	cst_key,
         trim(cst_firstname) cst_firstname,
         trim(cst_lastname) cst_lastname,
         case 	when upper(trim(cst_marital_status)) = 'S' then 'Single'
-				      when upper(trim(cst_marital_status)) = 'M' then 'Married'
-              else 'n/a'
-		    end cst_marital_status,
+	      	when upper(trim(cst_marital_status)) = 'M' then 'Married'
+              	else 'n/a'
+    	end cst_marital_status,
         case 	when upper(trim(cst_gndr)) = 'F' then 'Female'
-				      when upper(trim(cst_gndr)) = 'M' then 'Male'
-              else 'n/a'
-		    end cst_gndr,
+		when upper(trim(cst_gndr)) = 'M' then 'Male'
+		else 'n/a'
+	end cst_gndr,
         cst_create_date
 from
 (select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
