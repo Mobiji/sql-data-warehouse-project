@@ -1,1 +1,128 @@
+/*
+========================================================================================================================================
+				CLEANING AND STANDARDIZING THE 'CRM_CUST_INFO' TABLE
+========================================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------------------
+				Script Purpose:
+          The following queries are responsible for cleansing and standardizing the 'bronze.crm_cust_info' table.
+          Cleansing Operations include:
+						            - Handling leading and trailling spaces
+                        - Removing duplicates
+                        - Data normalization/standardization
+                        - Handling null values
+----------------------------------------------------------------------------------------------------------------------------------------
+*/
 
+
+select *
+from bronze.crm_cust_info;
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for trailling/leading spaces in the 'cst_id' column.
+select *
+from bronze.crm_cust_info
+where cst_id != trim(cst_id);
+-- Result: no trailing/leading spaces.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for duplicates
+select cst_id, count(*)
+from bronze.crm_cust_info
+group by cst_id
+having count(*) > 1;
+-- We have a few duplicates
+
+select *
+from bronze.crm_cust_info
+where cst_id in (29433, 0, 29449, 29466, 29473, 29483);
+/* 	From the a above query, it is evident that the most relevant data from the duplicates are the ones which have 
+	the most recent create_date value. This means that we will keep these ones and filter out the older ones.*/
+
+select 	nullif(cst_id, 0) cst_id,
+		cst_key,
+        cst_firstname,
+        cst_lastname,
+        cst_marital_status,
+        cst_gndr,
+        cst_create_date
+from
+(select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
+from bronze.crm_cust_info) subquery
+where row_num = 1 and nullif(cst_id, 0) is not null;
+-- At this point, all the duplicates have been dealt with so our data has no duplicates.
+-- I used a subquery because one cannot directly reference a window function in the where clause.
+/* 	I will use this query as the foundation query and add changes to it then eventually use a future version of it
+	as the 'insert into' statement to insert cleansed data into our silver.crm_cust_info table.*/
+----------------------------------------------------------------------------------------------------------------------------------------
+-- Checking for trailling/leading spaces in the 'cst_key' column.
+select *
+from bronze.crm_cust_info
+where cst_key != trim(cst_key);
+-- This query shows that there are no trailling/leading spaces in the cst_key column.
+----------------------------------------------------------------------------------------------------------------------------------------
+-- Checking for trailling/leading spaces in the 'cst_firstname' and 'cst_lastname' columns.
+select *
+from bronze.crm_cust_info
+where cst_lastname != trim(cst_lastname);
+-- There are leading/trailing spaces in the cst_firstname column.
+-- When I switch the 'cst_firstname' with 'cst_lastname', I see that there are also leading/trailing spaces in the lastname column. 
+/* 	To deal with these spaces, we will use 'trim(cst_firstname)' and 'trim(cst_lastname)' respectively 
+	in place of 'cst_firstname' and 'cst_lastname'.*/
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- So, my latest 'insert into silver.crm_cust_info' query now looks like the following
+
+select 	nullif(cst_id, 0) cst_id,
+		    cst_key,
+        trim(cst_firstname) cst_firstname,
+        trim(cst_lastname) cst_lastname,
+        cst_marital_status,
+        cst_gndr,
+        cst_create_date
+from
+(select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
+from bronze.crm_cust_info) subquery
+where row_num = 1 and nullif(cst_id, 0) is not null;
+----------------------------------------------------------------------------------------------------------------------------------------
+
+/* For the 'cst_marital_status' and 'cst_gndr' columns, I will do a bit of normalization 
+	where I will map the current values to more friendly values.
+    i.e. For gender, 'M' will be 'Male' while 'F' will be 'Female'
+    
+    But first, I will check the distinct values for both the columns and make sure that 
+    there are only 3 possible values for each.
+    i.e. For gender, there should only be 'M', 'F', and 'n/a'.
+*/ 
+
+select distinct cst_marital_status
+from bronze.crm_cust_info;
+
+select distinct cst_gndr
+from bronze.crm_cust_info;
+-- From the above queries, I see that there are blanks. These blanks I will replace with 'n/a'.
+
+select 	nullif(cst_id, 0) cst_id,
+		    cst_key,
+        trim(cst_firstname) cst_firstname,
+        trim(cst_lastname) cst_lastname,
+        case 	when upper(trim(cst_marital_status)) = 'S' then 'Single'
+				      when upper(trim(cst_marital_status)) = 'M' then 'Married'
+              else 'n/a'
+		    end cst_marital_status,
+        case 	when upper(trim(cst_gndr)) = 'F' then 'Female'
+				      when upper(trim(cst_gndr)) = 'M' then 'Male'
+              else 'n/a'
+		    end cst_gndr,
+        cst_create_date
+from
+(select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
+from bronze.crm_cust_info) subquery
+where row_num = 1 and nullif(cst_id, 0) is not null;
+----------------------------------------------------------------------------------------------------------------------------------------
+
+select *
+from bronze.crm_cust_info
+where cst_create_date != trim(cst_create_date);
+-- The 'cst_create_date' column also has no leading/trailling spaces.
+
+-- At this point, our data is now cleaned and ready to be inserted into the 'silver.crm_cust_info' table.
