@@ -19,20 +19,21 @@ create table silver.crm_cust_info (
 	cst_marital_status varchar(50),
 	cst_gndr varchar(50),
 	cst_create_date date,
-  dwh_create_date datetime default now()
+  	dwh_create_date datetime default now()
 );
 
 -- Creating the table 'prd_info'
 drop table if exists silver.crm_prd_info;
 create table silver.crm_prd_info (
 	prd_id INT,
+    	cat_ID varchar (50),
 	prd_key varchar(50),
 	prd_nm varchar(50),
 	prd_cost INT,
 	prd_line varchar(50),
-	prd_start_dt datetime,
-	prd_end_dt datetime,
-  dwh_create_date datetime default now()
+	prd_start_dt date,
+	prd_end_dt date,
+  	dwh_create_date datetime default now()
 );
 
 -- Creating the table 'sales_details'
@@ -47,7 +48,7 @@ create table silver.crm_sales_details (
 	sls_sales INT,
 	sls_quantity INT,
 	sls_price INT,
-  dwh_create_date datetime default now()
+  	dwh_create_date datetime default now()
 );
 
 -- Creating the table 'CUST_AZ12'
@@ -56,7 +57,7 @@ create table silver.erp_CUST_AZ12 (
 	CID varchar(50),
 	BDATE date,
 	GEN varchar(50),
-  dwh_create_date datetime default now()
+  	dwh_create_date datetime default now()
 );
 
 -- Creating the table 'LOC_A101'
