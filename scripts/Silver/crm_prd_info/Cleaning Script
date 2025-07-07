@@ -1,1 +1,179 @@
+-- Cleaning the 'crm_prd_info' table
 
+select *
+from bronze.crm_prd_info;
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for leading/trailling spaces in the 'prd_id' column
+select *
+from bronze.crm_prd_info
+where prd_id != trim(prd_id);
+-- Result: NIL. No leading/trailling spaces in the 'prd_id' column.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- checking for duplicates in the 'prd_id' column which is like the primary key for this table.
+select prd_id, count(*)
+from bronze.crm_prd_info
+group by prd_id
+having count(*) > 1;
+-- Result: NIL. No duplicates found. Every product is unique with respect to it's product id.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for leading/trailling spaces in the 'prd_key' column
+select *
+from bronze.crm_prd_info
+where prd_key != trim(prd_key);
+-- Result: NIL. No leading/trailling spaces in the 'prd_id' column.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+select *
+from bronze.crm_sales_details;
+
+select *
+from bronze.crm_prd_info;
+
+select *
+from bronze.erp_px_cat_g1_v2;
+
+/* 	- 	When I view all the 3 tables above together, I can see that in the 'bronze.crm_prd_info' table, the 'prd_key' column 
+		is a composite of the 'ID' column from the 'bronze.erp_px_cat_g1_v2' table and the 'sls_prd_key' column from the
+		'bronze.crm_sales_details' table.
+    - 	So referring to my data integration model, I can see that I will in future 
+		join the dimension tables ('bronze.crm_prd_info' and 'bromze.erp_px_cat_g1_v2') to the fact table ('bronze.crm_sales_details') 
+    - 	In order to achieve this, I will have to break down the 'prd_key' column of the 'bronze.crm_prd_info' table
+		in to 2 separate columns to facilitate the joins. 
+*/
+
+select 	prd_id,
+        replace(substring(prd_key, 1, 5), '-', '_') cat_ID,
+        substring(prd_key, 7, length(prd_key)) prd_key,
+        prd_nm,
+        prd_cost,
+        prd_line,
+        prd_start_dt,
+        prd_end_dt
+from bronze.crm_prd_info;
+-- I have generated 2 new columns ('prd_categID_key' and 'slsID_key') that will in future facilitate joins. 
+/* 	
+    I have used replace because in the 'ID' column from the 'bronze.erp_px_cat_g1_v2' table, it's values have '_', 
+	  while in the 'bronze.crm_prd_info' table, the 'prd_key' column contains '-' instead. 
+    This difference will cause an error when I attempt to join the 2 tables. 
+*/
+    
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for leading/trailling spaces in the 'prd_nm' column
+select *
+from bronze.crm_prd_info
+where prd_nm != trim(prd_nm);
+-- Result: NIL. No leading/trailling spaces in the 'prd_nm' column.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for invalid production costs in the 'prd_cost' column.
+/* 	Since the 'prd_cost' column is an integer column, I cant have nulls or negative production costs.
+	  Nulls usually interfere with calculations like avg.
+	  If there are nulls, I will replace them with zeros.
+    If there are negative costs, I will consult the source system experts. 
+      If that is impossible, I will convert them to positive values. 
+*/
+
+select prd_cost
+from bronze.crm_prd_info
+where prd_cost < 0 or prd_cost is null;
+-- Result: NIL.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for all existing values of the 'prd_line' column.
+
+select distinct prd_line
+from bronze.crm_prd_info;
+-- Result: 'R', 'S', 'M', 'T' and blanks.
+-- I will go ahead and replace all these values with more friendly values (Data Normalization).
+
+select 	trim(prd_id) prd_id,
+        replace(substring(prd_key, 1, 5), '-', '_') cat_ID,
+        substring(prd_key, 7, length(prd_key)) prd_key,
+        trim(prd_nm) prd_nm,
+        ifnull(abs(prd_cost), 0) prd_cost,
+        case 	  when upper(trim(prd_line)) = 'R' then 'Road'
+				        when upper(trim(prd_line)) = 'S' then 'Other Sales'
+                when upper(trim(prd_line)) = 'M' then 'Mountain'
+                when upper(trim(prd_line)) = 'T' then 'Touring'
+                else 'n/a'
+		    end prd_line,
+        prd_start_dt,
+        prd_end_dt
+from bronze.crm_prd_info;
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- For the last 2 columns ('prd_start_dt' and 'prd_end_dt'), I am going to look out for invalid dates.
+-- i.e. of an invalid date, (where 'prd_end_dt' is earlier than 'prd_start_dt'). This is logically impossible.
+
+select *
+from bronze.crm_prd_info
+where prd_end_dt < prd_start_dt;
+-- Result: Multiple records.
+
+/*	- In order to fix this, one should consult the source system experts in order to get clarity on the situation.
+	  - In my case, I dont know the source system experts so I will attempt to resolve it logically.
+
+	- Solution 1: Switch the end dates with the start dates and see if the outcome will make more sense.
+    The dates might have been exchanged during entry. (One might have entered the start date in the end date or vice versa)
+        
+    This solution produces data that is more logical now.
+        
+    But the solution has introduced another issue: Now there is overlapping of the dates.
+    Meaning: we have a scenario where a product has 2 costs at a specific period in time.
+        i.e. 
+			prd_id prd_key          prd_nm                  prd_cost 	prd_line  prd_start_dt            prd_end_dt
+			212	   AC-HE-HL-U509-R	Sport-100 Helmet- Red	12	     	S 	      2007-12-28 00:00:00 	  2011-07-01 00:00:00  
+			213	   AC-HE-HL-U509-R	Sport-100 Helmet- Red	14	     	S 	      2008-12-27 00:00:00 	  2012-07-01 00:00:00   
+			214	   AC-HE-HL-U509-R	Sport-100 Helmet- Red	13	     	S 	      0000-00-00 00:00:00 	  2013-07-01 00:00:00  
+			
+			215	   AC-HE-HL-U509	Sport-100 Helmet- Black	12	     	S 	      2007-12-28 00:00:00 	  2011-07-01 00:00:00  
+			216	   AC-HE-HL-U509	Sport-100 Helmet- Black	14	     	S 	      2008-12-27 00:00:00 	  2012-07-01 00:00:00  
+			217	   AC-HE-HL-U509	Sport-100 Helmet- Black	13	     	S 	      0000-00-00 00:00:00 	  2013-07-01 00:00:00  
+			The above products in 2010 had 2 production costs for the exact same product which is impossible/illogical.
+            
+  - 	Also, by switching the dates, now the most current versions of the products have their start dates as 0 
+      while their correct start dates have become their end dates.
+  -  This solution does not seem fit.
+       ---------------------------------------------------------------------------------------------------------------------------------
+	
+  - Solution 2: Completely get rid of the 'prd_end_dt' values and rebuild them from the values of the 'prd_start_dt' column.
+	- 	Since there is historization of the products, it only makes sense that a newer version of a particular product
+					  will ONLY begin being produced WHEN the older version's production has been siezed.
+                    (a version's end date's new value will be equal to the start date of the new version minus 1 day).
+                    ('minus 1 day' to avoid overlapping of dates). 
+*/
+
+select *, lead (prd_start_dt) over (partition by prd_key order by prd_start_dt asc) - interval 1 day  Nu_prd_end_dt
+from bronze.crm_prd_info
+where prd_end_dt < prd_start_dt;
+
+-- Implementing this new logic into our master insert query:
+
+select 	trim(prd_id) prd_id,
+        replace(substring(prd_key, 1, 5), '-', '_') cat_ID,
+        substring(prd_key, 7, length(prd_key)) prd_key,
+        trim(prd_nm) prd_nm,
+        ifnull(abs(prd_cost), 0) prd_cost,
+        case   	when upper(trim(prd_line)) = 'R' then 'Road'
+				        when upper(trim(prd_line)) = 'S' then 'Other Sales'
+                when upper(trim(prd_line)) = 'M' then 'Mountain'
+                when upper(trim(prd_line)) = 'T' then 'Touring'
+                else 'n/a'
+		    end prd_line,
+        cast(prd_start_dt as date) prd_start_dt,
+		    cast(	  case 	when prd_end_dt < prd_start_dt 
+                      then lead(prd_start_dt) over (partition by prd_key order by prd_start_dt asc) - interval 1 day
+						          else prd_start_dt
+				        end as date) prd_end_dt
+from bronze.crm_prd_info;
+
+--  At this point, I now have cleaned-and-standardized product infomation ready to be inserted into the silver layer.
+
+/*	
+    But due to the various transfomations that I have done, I now have to go back 
+	  to the 'silver.crm_prd_info' table's DDL and incorporate those changes.
+*/
