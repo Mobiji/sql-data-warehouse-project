@@ -8,11 +8,10 @@
 	          Cleansing Operations include:
 						- Handling leading and trailling spaces
                         - Removing duplicates
-                        - Data enrichment
-						- Value validation
-                        - Handling null values
                         - Data normalization/standardization
-                        - Date consistency checks
+                        - Handling empty/blank values
+                        - Data enrichment
+                        - Data type casting
 ----------------------------------------------------------------------------------------------------------------------------------------
 */
 
