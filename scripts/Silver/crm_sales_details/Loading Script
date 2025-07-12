@@ -1,1 +1,42 @@
+insert into silver.crm_sales_details (
+		sls_ord_num,
+		sls_prd_key,
+        sls_cust_id,
+        sls_order_dt,
+        sls_ship_dt,
+        sls_due_dt,
+        sls_sales,
+        sls_quantity,
+        sls_price
+)
+with interim as (
+select 	trim(sls_ord_num) sls_ord_num,
+		trim(sls_prd_key) sls_prd_key,
+        sls_cust_id,
+		cast(	case 	when length(sls_order_dt) != 8 then null
+						else sls_order_dt
+				end as date) sls_order_dt,
+        cast(sls_ship_dt as date) sls_ship_dt,
+        cast(sls_due_dt as date) sls_due_dt,
+        case 	when sls_sales <= 0 then sls_price * sls_quantity
+				else sls_sales
+		end sls_sales,
+        sls_quantity,
+        case 	when sls_price <= 0 then sls_sales / sls_quantity
+				else sls_price
+		end sls_price
+from bronze.crm_sales_details
+)
 
+select 	sls_ord_num,
+		sls_prd_key,
+        sls_cust_id,
+        sls_order_dt,
+        sls_ship_dt,
+        sls_due_dt,
+		round(	case 	when sls_sales != sls_price * sls_quantity then sls_price * sls_quantity
+					else sls_sales
+				end, 0) sls_sales,
+        sls_quantity,
+        sls_price
+from interim;
