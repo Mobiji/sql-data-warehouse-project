@@ -1,1 +1,192 @@
+select *
+from bronze.crm_sales_details;
 
+-- Checking for leading/trailing spaces in the 'sls_ord_num' column.
+select *
+from bronze.crm_sales_details
+where sls_ord_num != trim(sls_ord_num);
+
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for duplicates in the 'sls_ord_num' column.
+select sls_ord_num, count(*) cnt
+from bronze.crm_sales_details
+group by sls_ord_num
+having count(*) > 1;
+-- Result: Multiple 
+-- Reason: An order most times contains purchases of multiple products. This does not necessarily mean that they are duplicates.
+
+-- In order to find the real duplicates, I used the following query.
+
+select *
+from
+(select *, row_number () 
+	over (partition by sls_ord_num, sls_prd_key, sls_cust_id, sls_order_dt, sls_ship_dt, sls_due_dt, sls_sales, sls_quantity, sls_price) row_num
+from bronze.crm_sales_details) subquery
+where row_num > 1;
+-- Result: NIL. No duplicates.
+
+select count(sls_ord_num)
+from bronze.crm_sales_details;
+-- Result: 60,398 
+
+-- The above query shows that there is a total of 60,398 orders in the business but this is not true.
+-- In order to find the real number of orders, one has to use the distinct. (An order might contain multiple products)
+select count(distinct sls_ord_num)
+from bronze.crm_sales_details;
+-- Result: 27,659 unique orders. This is the real number of orders in the business.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+/*  - 	Next, we move to the 'sls_prd_key' column. Here, we will check if it has leading/trailling spaces.
+	- 	Also, referring to my integration model, I see that I will use this column in future to join this table 
+		to the 'silver.crm_prd_info' table using the 'prd_key'.
+        This means that I have to check if all the values in this column exist in the 'silver.crm_prd_info' table.
+        If I find such values, that will mean that there are orders from unregistered products in the business.
+*/
+
+-- Checking for leading/trailing spaces in the 'sls_prd_key' column.
+select *
+from bronze.crm_sales_details
+where sls_prd_key != trim(sls_prd_key);
+-- Result: NIL.
+
+-- Verifying that all 'sls_ord_num' values exist in the 'silver.crm_prd_info' table
+-- Expectation: NIL.
+select *
+from bronze.crm_sales_details
+where sls_prd_key not in (	select prd_key
+							from silver.crm_prd_info);
+-- Result: NIL.
+----------------------------------------------------------------------------------------------------------------------------------------
+/*
+	- Next, I have three date columns ('sls_order_dt', 'sls_ship_dt', 'sls_due_dt') which have their values stored as integers.
+    - As integers, it means that each value should EXACTLY have 8 digits (YYYYMMDD). This will be my first check for the 3 columns.
+    - Secondly, I will go and convert the 3 columns to dates.
+    - Thirdly, I will go ahead and check for invalid dates. 
+	 i.e.	(	Order dates that exist in the future, OR shipping dates that come before the order dates, 
+				OR due dates that come before the shipping dates)
+*/
+
+-- 1. Checking the presence of dates that dont exactly have 8 digits in the 'sls_order_dt' column.
+select *
+from bronze.crm_sales_details
+where length(sls_order_dt) != 8; 
+-- Result: Multiple records. Here, I have to consult the source system's experts regarding these invalid dates.
+-- Since I cant reach the source system's experts, I will go ahead and replace all those values with 'n/a'.
+
+select 	trim(sls_ord_num) sls_ord_num,
+		trim(sls_prd_key) sls_prd_key,
+        sls_cust_id,
+        case 	when length(sls_order_dt) != 8 then 'n/a'
+				else sls_order_dt
+		end sls_order_dt,
+        sls_ship_dt,
+        sls_due_dt,
+        sls_sales,
+        sls_quantity,
+        sls_price
+from bronze.crm_sales_details;
+
+
+
+-- Checking the presence of dates that dont exactly have 8 digits in the 'sls_ship_dt' column.
+select *
+from bronze.crm_sales_details
+where length(sls_ship_dt) != 8; 
+-- Result: NIL.
+
+-- Checking the presence of dates that dont exactly have 8 digits in the 'sls_due_dt' column.
+select *
+from bronze.crm_sales_details
+where length(sls_due_dt) != 8; 
+-- Result: NIL.
+
+-- 2. Converting these 3 columns to dates.
+select 	trim(sls_ord_num) sls_ord_num,
+		trim(sls_prd_key) sls_prd_key,
+        sls_cust_id,
+		cast(	case 	when length(sls_order_dt) != 8 then 'n/a'
+						else sls_order_dt
+				end as date) sls_order_dt,
+        cast(sls_ship_dt as date) sls_ship_dt,
+        cast(sls_due_dt as date) sls_due_dt,
+        sls_sales,
+        sls_quantity,
+        sls_price
+from bronze.crm_sales_details;
+
+-- Checking for invalid dates.
+select *
+from bronze.crm_sales_details
+where sls_order_dt > now() OR sls_order_dt > now() OR sls_due_dt > now();
+-- Result: NIL.
+
+select *
+from bronze.crm_sales_details
+where sls_due_dt < sls_ship_dt OR sls_ship_dt < sls_order_dt;
+-- Result: NIL.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+/*
+	- 	For the next 3 columns ('sls_sales', 'sls_quantity' and 'sls_price'), I will first check if there are negative values.
+		If present, I will consult the source system's experts. But since I dont have a way to reach them, 
+        I will go ahead and convert them to positive values
+    - I will then check if they follow the logic of 'sales = quantity * price'. If not, I am going to enforce the logic by doing data enrichment.
+*/
+
+-- Checking if the columns ('sls_sales', 'sls_quantity' and 'sls_price') have negative values in them.
+select *
+from bronze.crm_sales_details
+where sls_sales < 0;
+-- Result: 3 records.
+
+select *
+from bronze.crm_sales_details
+where sls_quantity < 0;
+-- Result: NIL.
+
+select *
+from bronze.crm_sales_details
+where sls_price < 0;
+-- Result: 5 records.
+
+-- Converting them to postive values and enforcing the above-mentioned logic
+
+with interim as (
+select 	trim(sls_ord_num) sls_ord_num,
+		trim(sls_prd_key) sls_prd_key,
+        sls_cust_id,
+		cast(	case 	when length(sls_order_dt) != 8 then 'n/a'
+						else sls_order_dt
+				end as date) sls_order_dt,
+        cast(sls_ship_dt as date) sls_ship_dt,
+        cast(sls_due_dt as date) sls_due_dt,
+        case 	when sls_sales <= 0 then sls_price * sls_quantity
+				else sls_sales
+		end sls_sales,
+        sls_quantity,
+        case 	when sls_price <= 0 then sls_sales / sls_quantity
+				else sls_price
+		end sls_price
+from bronze.crm_sales_details
+)
+
+select sls_ord_num,
+		sls_prd_key,
+        sls_cust_id,
+        sls_order_dt,
+        sls_ship_dt,
+        sls_due_dt,
+		round(	case 	when sls_sales != sls_price * sls_quantity then sls_price * sls_quantity
+					else sls_sales
+				end, 0) sls_sales,
+        sls_quantity,
+        sls_price
+from interim;
+----------------------------------------------------------------------------------------------------------------------------------------
+-- Here,my data is clean and ready to be inserted into the silver layer.
+/* 		But before I do this, I have to go to the DDL script for the 'silver.crm_sales_details' and update the datatype of the columns: 
+		'sls_order_dt', 'sls_ship_dt' and 'sls_due_dt' to the datatype 'date' because in our cleaning I transformed the said columns 
+        from the 'int' datatype to the 'date' datatype.
+*/
