@@ -3,10 +3,10 @@
 	SCRIPT FOR CREATING THE TABLES FOR THE SILVER LAYER
 ==============================================================================================================================
 	Script purpose:
-				      This script goes ahead to create the various tables required for the Silver layer.
-            	It first of all drops the individual tables IF they already exist, and then goes ahead to create each table.
+				This script goes ahead to create the various tables required for the Silver layer.
+				It first of all drops the individual tables IF they already exist, and then goes ahead to create each table.
             	I also went ahead and included an extra column 'create_date' in each DDL script in order to have the timestamp 
-              of when a record was inserted in each table.
+				of when a record was inserted in each table.
 */
 
 -- Creating the table 'cust_info'
@@ -42,9 +42,9 @@ create table silver.crm_sales_details (
 	sls_ord_num varchar(50),
 	sls_prd_key varchar(50),
 	sls_cust_id INT,
-	sls_order_dt INT,
-	sls_ship_dt INT,
-	sls_due_dt INT,
+	sls_order_dt date,
+	sls_ship_dt date,
+	sls_due_dt date,
 	sls_sales INT,
 	sls_quantity INT,
 	sls_price INT,
