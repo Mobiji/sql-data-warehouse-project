@@ -1,3 +1,19 @@
+/*
+========================================================================================================================================
+		CLEANING AND STANDARDIZING THE 'BRONZE.CRM_SALES_DETAILS' TABLE
+========================================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------------------
+		Script Purpose:
+	          The following queries are responsible for cleansing and standardizing the 'bronze.crm_sales_details' table.
+	          Cleansing Operations include:
+						- Handling leading and trailling spaces
+                        - Identifying and removing duplicates
+                        - Handling empty/blank values
+                        - Handling invalid dates	
+                        - Data type casting
+----------------------------------------------------------------------------------------------------------------------------------------
+*/
+
 select *
 from bronze.crm_sales_details;
 
@@ -42,7 +58,7 @@ from bronze.crm_sales_details;
 	- 	Also, referring to my integration model, I see that I will use this column in future to join this table 
 		to the 'silver.crm_prd_info' table using the 'prd_key'.
         This means that I have to check if all the values in this column exist in the 'silver.crm_prd_info' table.
-        If I find such values, that will mean that there are orders from unregistered products in the business.
+        If I find values thet dont exist in the products table, that will mean that there are orders from unregistered products in the business.
 */
 
 -- Checking for leading/trailing spaces in the 'sls_prd_key' column.
@@ -132,7 +148,7 @@ where sls_due_dt < sls_ship_dt OR sls_ship_dt < sls_order_dt;
 	- 	For the next 3 columns ('sls_sales', 'sls_quantity' and 'sls_price'), I will first check if there are negative values.
 		If present, I will consult the source system's experts. But since I dont have a way to reach them, 
         I will go ahead and convert them to positive values
-    - I will then check if they follow the logic of 'sales = quantity * price'. If not, I am going to enforce the logic by doing data enrichment.
+    - 	I will then check if they follow the logic of 'sales = quantity * price'. If not, I am going to enforce the logic by doing data enrichment.
 */
 
 -- Checking if the columns ('sls_sales', 'sls_quantity' and 'sls_price') have negative values in them.
@@ -185,8 +201,10 @@ select sls_ord_num,
         sls_price
 from interim;
 ----------------------------------------------------------------------------------------------------------------------------------------
--- Here,my data is clean and ready to be inserted into the silver layer.
+-- Here, my data is clean and ready to be inserted into the silver layer.
+
 /* 		But before I do this, I have to go to the DDL script for the 'silver.crm_sales_details' and update the datatype of the columns: 
 		'sls_order_dt', 'sls_ship_dt' and 'sls_due_dt' to the datatype 'date' because in our cleaning I transformed the said columns 
         from the 'int' datatype to the 'date' datatype.
 */
+----------------------------------------------------------------------------------------------------------------------------------------
