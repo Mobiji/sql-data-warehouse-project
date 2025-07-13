@@ -1,1 +1,14 @@
+truncate table silver.erp_loc_a101;
+insert into silver.erp_loc_a101
+(
+		CID,
+        CNTRY
+)
 
+select  replace(CID, '-', '') CID,    
+		case  	when upper(trim(CNTRY)) in ('DE', 'GERMANY') then 'Germany'
+				when upper(trim(CNTRY)) in ('US', 'USA', 'UNITED STATES') then 'United States'
+				when upper(trim(CNTRY)) = '' then null
+				else trim(CNTRY)
+		end CNTRY 
+from bronze.erp_loc_a101;
