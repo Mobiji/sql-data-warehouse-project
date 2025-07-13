@@ -23,10 +23,10 @@ from bronze.erp_cust_az12
 where CID != trim(CID);
 -- Result: NIL.
 
-/* 	Referring to my data integration model, I can see that I will use this column (CID) to join it ti the 'silver.crm_cust_info' table.
-	But when I compare this column 'CID' with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID'column 
+/* 	Referring to my data integration model, I can see that I will use this column (CID) to join it to the 'silver.crm_cust_info' table.
+	But when I compare this column 'CID' with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID' column 
     there are extra characters ('NAS') which will cause errors when I attempt to join the 2 tables together.
-  - In order to facilitate this future join, I will have to extract out the 'NAS' part out.
+  - In order to facilitate the future join, I will have to extract the 'NAS' part out.
 */
 
 select 	case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
