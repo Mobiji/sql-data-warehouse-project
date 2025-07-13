@@ -54,10 +54,6 @@ select distinct CNTRY
 from bronze.erp_loc_a101;
 -- Result: 13 distinct values indicating the need for normalization.
 
-select 	distinct CNTRY, 
-		length(CNTRY) 
-from bronze.erp_loc_a101;
-
 select  replace(CID, '-', '') CID,    
 		case  	when upper(trim(CNTRY)) in ('DE', 'GERMANY') then 'Germany'
 				when upper(trim(CNTRY)) in ('US', 'USA', 'UNITED STATES') then 'United States'
