@@ -1,1 +1,106 @@
+/*
+========================================================================================================================================
+		CLEANING AND STANDARDIZING THE 'BRONZE.ERP_CUST_AZ12' TABLE
+========================================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------------------
+		Script Purpose:
+	          The following queries are responsible for cleansing and standardizing the 'bronze.erp_cust_az12' table.
+	          Cleansing Operations include:
+						- Handling invalid data in the 'CID' column
+                        - Handling invalid birthdates
+                        - Data normalization
+                        - Handling missing values in the 'GEN' column
+----------------------------------------------------------------------------------------------------------------------------------------
+*/
 
+select *
+from bronze.erp_cust_az12;
+
+-- For the 1st column 'CID', I will start by checking for leading/trailling spaces.
+
+select *
+from bronze.erp_cust_az12
+where CID != trim(CID);
+-- Result: NIL.
+
+/* 	Referring to my data integration model, I can see that I will use this column (CID) to join it ti the 'silver.crm_cust_info' table.
+	But when I compare this column 'CID' with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID'column 
+    there are extra characters ('NAS') which will cause errors when I attempt to join the 2 tables together.
+  - In order to facilitate this future join, I will have to extract out the 'NAS' part out.
+*/
+
+select 	case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
+				else trim(CID)
+		end CID,
+		BDATE,
+        GEN
+from bronze.erp_cust_az12;
+----------------------------------------------------------------------------------------------------------------------------------------
+
+/* 	- For the 'BDATE' column, it has a 'date' datatype in the DDL script of its table which means that 
+	  an invalid date cannot be inserted into it from the offset.
+	- This means that for this column I will only check for invalid dates. i.e. birthdays in the future 
+      or customers whose age is older than or equal to 150 yrs (These cases are impossible to find).
+*/
+
+select *
+from bronze.erp_cust_az12
+where BDATE > now();
+
+-- Result: 16 records. Since I am not in contact with any of the sorce system experts for consultation, I will replace these with nulls.
+
+select 	case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
+				else trim(CID)
+		end CID,
+        case 	when BDATE > now() then null
+				else BDATE
+		end BDATE,
+        GEN
+from bronze.erp_cust_az12;
+
+-- Checking for the overly old customers
+
+with OldestCust as 
+(
+	select 	case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
+					else trim(CID)
+			end CID,
+			case 	when BDATE > now() then null
+					else BDATE
+			end BDATE,
+			GEN
+	from bronze.erp_cust_az12
+)
+
+select 	CID,
+		BDATE,
+        timestampdiff(year, BDATE, now()) Age,
+        GEN
+from OldestCust
+where timestampdiff(year, BDATE, now()) >= 150;
+
+-- Result: NIL.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- In the 'GEN' column, here we are expecting only 3 values: 'Female', 'Male' and 'n/a'. So I will check for this constraint.
+-- If there are other values, I will convert them to 'Female', 'Male' or 'n/a'.
+
+select 	distinct GEN, length(GEN) len
+from bronze.erp_cust_az12;
+-- Result: 8 different types of distinct results.
+
+-- Cleaning the 'GEN' column
+select 		case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
+					else trim(CID)
+			end CID,
+			case 	when BDATE > now() then null
+					else BDATE
+			end BDATE,
+            case 	when upper(trim(GEN)) in ('M', 'MALE') then 'Male'
+					when upper(trim(GEN)) in ('F', 'FEMALE') then 'Female'
+                    else 'n/a'
+			end GEN
+from bronze.erp_cust_az12;
+----------------------------------------------------------------------------------------------------------------------------------------
+-- This data is now ready to be inserted into the 'silver.erp_cust_az12' table.
+----------------------------------------------------------------------------------------------------------------------------------------
