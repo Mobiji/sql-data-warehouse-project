@@ -1,1 +1,70 @@
+/*
+========================================================================================================================================
+		CLEANING AND STANDARDIZING THE 'BRONZE.ERP_LOC_A101' TABLE
+========================================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------------------
+		Script Purpose:
+	          The following queries are responsible for cleansing and standardizing the 'bronze.erp_loc_a101' table.
+	          Cleansing Operations include:
+						- Handling invalid data in the 'CID' column (Removing the hiphen)
+                        - Data normalization
+                        - Handling missing values in the 'CNTRY' column
+----------------------------------------------------------------------------------------------------------------------------------------
+*/
 
+select * 
+from bronze.erp_loc_a101;
+
+-- For the 1st column 'CID', I will start by checking for leading/trailling spaces.
+select * 
+from bronze.erp_loc_a101 
+where CID != trim(CID);
+-- Result: NIL.
+
+/* 	Referring to my data integration model, I can see that I will use this column (CID) to join it to the 'silver.crm_cust_info' table.
+	But when I compare this 'CID' column with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID' column 
+    there is an extra character (a hiphen) after the 2nd character in each value in the field which will cause errors 
+    when I attempt to join the 2 tables together in future.
+  - In order to facilitate the future join, I will have to extract the '-' part out.
+*/
+select  	replace(CID, '-', '') CID,    
+			CNTRY 
+from bronze.erp_loc_a101;
+
+-- Checking if the new 'CID' column's values have exactly 10 characters per value.
+-- Expectation: NIL 
+select * 
+from (	select  replace(CID, '-', '') CID,    
+				CNTRY 
+		from bronze.erp_loc_a101)  d
+where length(CID) != 10;
+-- Result: NIL.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- For the 'CNTRY' column, I'll start by checking for leading/trailling spaces
+-- I will then proceed to normalize the column, if need be.
+select  replace(CID, '-', '') CID,    
+		CNTRY 
+from bronze.erp_loc_a101 
+where CNTRY != trim(CNTRY);
+-- Result: 5 records.
+
+-- Checking for distinct values in the 'CNTRY' column
+select distinct CNTRY
+from bronze.erp_loc_a101;
+-- Result: 13 distinct values indicating the need for normalization.
+
+select 	distinct CNTRY, 
+		length(CNTRY) 
+from bronze.erp_loc_a101;
+
+select  replace(CID, '-', '') CID,    
+		case  	when upper(trim(CNTRY)) in ('DE', 'GERMANY') then 'Germany'
+				when upper(trim(CNTRY)) in ('US', 'USA', 'UNITED STATES') then 'United States'
+				when upper(trim(CNTRY)) = '' then null
+				else trim(CNTRY)
+		end CNTRY 
+from bronze.erp_loc_a101;
+----------------------------------------------------------------------------------------------------------------------------------------
+-- This data is now ready to be inserted into the silver layer.
+----------------------------------------------------------------------------------------------------------------------------------------
