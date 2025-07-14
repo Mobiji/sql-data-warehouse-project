@@ -1,193 +1,195 @@
 Delimiter $$
-drop procedure if exists To_Load_Silver_Layer;
-create procedure To_Load_Silver_Layer ();
+drop procedure if exists Load_Silver_Layer;
+create procedure Load_Silver_Layer ()
 begin
-		/*
-		=============================================================================================================
-				STATEMENTS FOR INSERTING CLEANED AND STANDARDIZED DATA INTO THE SILVER LAYER
-		=============================================================================================================
-		*/
+	/*
+	=============================================================================================================
+			STATEMENTS FOR INSERTING CLEANED AND STANDARDIZED DATA INTO THE SILVER LAYER
+	=============================================================================================================
+	*/
 
-		/*
-		-------------------------------------------------------------------------------------------------------------
-					INSERT STATEMENTS FOR THE 'CRM' SOURCE TABLES
-		-------------------------------------------------------------------------------------------------------------
-		*/
+	/*
+	-------------------------------------------------------------------------------------------------------------
+				INSERT STATEMENTS FOR THE 'CRM' SOURCE TABLES
+	-------------------------------------------------------------------------------------------------------------
+	*/
+	
+	-- Truncating the 'silver.crm_cust_info' table.
+	truncate silver.crm_cust_info;
+	-- Inserting cleaned data into the 'silver.crm_cust_info' table.
+	insert into silver.crm_cust_info 
+	(		cst_id,
+			cst_key,
+			cst_firstname,
+			cst_lastname,
+			cst_marital_status,
+			cst_gndr,
+			cst_create_date
+	)
+	select 	nullif(cst_id, 0) cst_id,
+			cst_key,
+			trim(cst_firstname) cst_firstname,
+			trim(cst_lastname) cst_lastname,
+			case 	when upper(trim(cst_marital_status)) = 'S' then 'Single'
+					when upper(trim(cst_marital_status)) = 'M' then 'Married'
+					else 'n/a'
+			end cst_marital_status,
+			case 	when upper(trim(cst_gndr)) = 'F' then 'Female'
+					when upper(trim(cst_gndr)) = 'M' then 'Male'
+					else 'n/a'
+			end cst_gndr,
+			cst_create_date
+	from
+	(select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
+	from bronze.crm_cust_info) subquery
+	where row_num = 1 and nullif(cst_id, 0) is not null;
+	/* ------------------------------------------------------------------------------------------------------------- */
 
-		-- Truncating the 'silver.crm_cust_info' table.
-		truncate silver.crm_cust_info;
+	-- Truncating the 'silver.crm_prd_info' table.
+	truncate table silver.crm_prd_info;
 
-		-- Inserting cleaned data into the 'silver.crm_cust_info' table.
-		insert into silver.crm_cust_info 
-		(		cst_id,
-				cst_key,
-				cst_firstname,
-				cst_lastname,
-				cst_marital_status,
-				cst_gndr,
-				cst_create_date
-		)
-		select 	nullif(cst_id, 0) cst_id,
-				cst_key,
-				trim(cst_firstname) cst_firstname,
-				trim(cst_lastname) cst_lastname,
-				case 	when upper(trim(cst_marital_status)) = 'S' then 'Single'
-						when upper(trim(cst_marital_status)) = 'M' then 'Married'
+	-- Inserting cleaned data into the 'silver.crm_cust_info' table.
+	insert into silver.crm_prd_info 
+	(	  prd_id,
+		  cat_ID,
+		prd_key,
+		prd_nm,
+		prd_cost,
+		prd_line,
+		prd_start_dt,
+		prd_end_dt
+	)
+
+	select 	trim(prd_id) prd_id,
+			replace(substring(prd_key, 1, 5), '-', '_') cat_ID,
+			substring(prd_key, 7, length(prd_key)) prd_key,
+			trim(prd_nm) prd_nm,
+			ifnull(abs(prd_cost), 0) prd_cost,
+			case 	when upper(trim(prd_line)) = 'R' then 'Road'
+					when upper(trim(prd_line)) = 'S' then 'Other Sales'
+					when upper(trim(prd_line)) = 'M' then 'Mountain'
+					when upper(trim(prd_line)) = 'T' then 'Touring'
+					else 'n/a'
+			end prd_line,
+			cast(prd_start_dt as date) prd_start_dt,
+			cast(	case 	when prd_end_dt < prd_start_dt 
+								then lead(prd_start_dt) over (partition by prd_key order by prd_start_dt asc) - interval 1 day
+							else prd_start_dt
+					end as date) prd_end_dt
+	from bronze.crm_prd_info;
+	/* ------------------------------------------------------------------------------------------------------------- */
+	
+	-- Truncating the 'silver.crm_sales_details' table
+	truncate table silver.crm_sales_details;
+
+	-- Inserting cleaned data into the 'silver.crm_cust_info' table.
+	insert into silver.crm_sales_details (
+			sls_ord_num,
+			sls_prd_key,
+			sls_cust_id,
+			sls_order_dt,
+			sls_ship_dt,
+			sls_due_dt,
+			sls_sales,
+			sls_quantity,
+			sls_price
+	)
+	with interim as (
+	select 	trim(sls_ord_num) sls_ord_num,
+			trim(sls_prd_key) sls_prd_key,
+			sls_cust_id,
+			cast(	case 	when length(sls_order_dt) != 8 then null
+							else sls_order_dt
+					end as date) sls_order_dt,
+			cast(sls_ship_dt as date) sls_ship_dt,
+			cast(sls_due_dt as date) sls_due_dt,
+			case 	when sls_sales <= 0 then sls_price * sls_quantity
+					else sls_sales
+			end sls_sales,
+			sls_quantity,
+			case 	when sls_price <= 0 then sls_sales / sls_quantity
+					else sls_price
+			end sls_price
+	from bronze.crm_sales_details
+	)
+
+	select 	sls_ord_num,
+			sls_prd_key,
+			sls_cust_id,
+			sls_order_dt,
+			sls_ship_dt,
+			sls_due_dt,
+			round(	case 	when sls_sales != sls_price * sls_quantity then sls_price * sls_quantity
+							else sls_sales
+					end, 0) sls_sales,
+			sls_quantity,
+			sls_price
+	from interim;
+	/* ------------------------------------------------------------------------------------------------------------- */
+	
+	/*
+	-------------------------------------------------------------------------------------------------------------
+				INSERT STATEMENTS FOR THE 'ERP' SOURCE TABLES
+	-------------------------------------------------------------------------------------------------------------
+	*/
+	
+	-- Truncating the 'silver.erp_cust_az12' table
+	truncate table silver.erp_cust_az12;
+
+	-- Inserting cleaned data into the 'silver.erp_cust_az12' table.
+	insert into silver.erp_cust_az12
+	(
+			CID,
+			BDATE,
+			GEN
+	)
+	select 		case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
+						else trim(CID)
+				end CID,
+				case 	when BDATE > now() then null
+						else BDATE
+				end BDATE,
+				case 	when upper(trim(GEN)) in ('M', 'MALE') then 'Male'
+						when upper(trim(GEN)) in ('F', 'FEMALE') then 'Female'
 						else 'n/a'
-				end cst_marital_status,
-				case 	when upper(trim(cst_gndr)) = 'F' then 'Female'
-						when upper(trim(cst_gndr)) = 'M' then 'Male'
-						else 'n/a'
-				end cst_gndr,
-				cst_create_date
-		from
-		(select *, row_number () over (partition by cst_id order by cst_create_date desc) row_num
-		from bronze.crm_cust_info) subquery
-		where row_num = 1 and nullif(cst_id, 0) is not null;
-		-------------------------------------------------------------------------------------------------------------
+				end GEN
+	from bronze.erp_cust_az12;
+	/* ------------------------------------------------------------------------------------------------------------- */
+	
+	-- Truncating the 'silver.erp_loc_a101' table.
+	truncate table silver.erp_loc_a101;
 
-		-- Truncating the 'silver.crm_prd_info' table.
-		truncate table silver.crm_prd_info;
+	-- Inserting cleaned data into the 'silver.erp_loc_a101' table.
+	insert into silver.erp_loc_a101
+	(
+			CID,
+			CNTRY
+	)
 
-		-- Inserting cleaned data into the 'silver.crm_cust_info' table.
-		insert into silver.crm_prd_info 
-		(	  prd_id,
-			  cat_ID,
-			prd_key,
-			prd_nm,
-			prd_cost,
-			prd_line,
-			prd_start_dt,
-			prd_end_dt
-		)
+	select  replace(CID, '-', '') CID,    
+			case  	when upper(trim(CNTRY)) in ('DE', 'GERMANY') then 'Germany'
+					when upper(trim(CNTRY)) in ('US', 'USA', 'UNITED STATES') then 'United States'
+					when upper(trim(CNTRY)) = '' then null
+					else trim(CNTRY)
+			end CNTRY 
+	from bronze.erp_loc_a101;
+	/* ------------------------------------------------------------------------------------------------------------- */
+	
+	-- Truncating the 'silver.erp_px_cat_g1_v2 ' table.
+	truncate table silver.erp_px_cat_g1_v2;
 
-		select 	trim(prd_id) prd_id,
-				replace(substring(prd_key, 1, 5), '-', '_') cat_ID,
-				substring(prd_key, 7, length(prd_key)) prd_key,
-				trim(prd_nm) prd_nm,
-				ifnull(abs(prd_cost), 0) prd_cost,
-				case 	when upper(trim(prd_line)) = 'R' then 'Road'
-						when upper(trim(prd_line)) = 'S' then 'Other Sales'
-						when upper(trim(prd_line)) = 'M' then 'Mountain'
-						when upper(trim(prd_line)) = 'T' then 'Touring'
-						else 'n/a'
-				end prd_line,
-				cast(prd_start_dt as date) prd_start_dt,
-				cast(	case 	when prd_end_dt < prd_start_dt 
-									then lead(prd_start_dt) over (partition by prd_key order by prd_start_dt asc) - interval 1 day
-								else prd_start_dt
-						end as date) prd_end_dt
-		from bronze.crm_prd_info;
-		-------------------------------------------------------------------------------------------------------------
-
-		-- Truncating the 'silver.crm_sales_details' table
-		truncate table silver.crm_sales_details;
-
-		-- Inserting cleaned data into the 'silver.crm_cust_info' table.
-		insert into silver.crm_sales_details (
-				sls_ord_num,
-				sls_prd_key,
-				sls_cust_id,
-				sls_order_dt,
-				sls_ship_dt,
-				sls_due_dt,
-				sls_sales,
-				sls_quantity,
-				sls_price
-		)
-		with interim as (
-		select 	trim(sls_ord_num) sls_ord_num,
-				trim(sls_prd_key) sls_prd_key,
-				sls_cust_id,
-				cast(	case 	when length(sls_order_dt) != 8 then null
-								else sls_order_dt
-						end as date) sls_order_dt,
-				cast(sls_ship_dt as date) sls_ship_dt,
-				cast(sls_due_dt as date) sls_due_dt,
-				case 	when sls_sales <= 0 then sls_price * sls_quantity
-						else sls_sales
-				end sls_sales,
-				sls_quantity,
-				case 	when sls_price <= 0 then sls_sales / sls_quantity
-						else sls_price
-				end sls_price
-		from bronze.crm_sales_details
-		)
-
-		select 	sls_ord_num,
-				sls_prd_key,
-				sls_cust_id,
-				sls_order_dt,
-				sls_ship_dt,
-				sls_due_dt,
-				round(	case 	when sls_sales != sls_price * sls_quantity then sls_price * sls_quantity
-								else sls_sales
-						end, 0) sls_sales,
-				sls_quantity,
-				sls_price
-		from interim;
-
-		/*
-		-------------------------------------------------------------------------------------------------------------
-					INSERT STATEMENTS FOR THE 'ERP' SOURCE TABLES
-		-------------------------------------------------------------------------------------------------------------
-		*/
-
-		-- Truncating the 'silver.erp_cust_az12' table
-		truncate table silver.erp_cust_az12;
-
-		-- Inserting cleaned data into the 'silver.erp_cust_az12' table.
-		insert into silver.erp_cust_az12
-		(
-				CID,
-				BDATE,
-				GEN
-		)
-		select 		case 	when trim(CID) like 'NAS%' then substring(trim(CID), 4, length(CID))
-							else trim(CID)
-					end CID,
-					case 	when BDATE > now() then null
-							else BDATE
-					end BDATE,
-					case 	when upper(trim(GEN)) in ('M', 'MALE') then 'Male'
-							when upper(trim(GEN)) in ('F', 'FEMALE') then 'Female'
-							else 'n/a'
-					end GEN
-		from bronze.erp_cust_az12;
-		-------------------------------------------------------------------------------------------------------------
-
-		-- Truncating the 'silver.erp_loc_a101' table.
-		truncate table silver.erp_loc_a101;
-
-		-- Inserting cleaned data into the 'silver.erp_loc_a101' table.
-		insert into silver.erp_loc_a101
-		(
-				CID,
-				CNTRY
-		)
-
-		select  replace(CID, '-', '') CID,    
-				case  	when upper(trim(CNTRY)) in ('DE', 'GERMANY') then 'Germany'
-						when upper(trim(CNTRY)) in ('US', 'USA', 'UNITED STATES') then 'United States'
-						when upper(trim(CNTRY)) = '' then null
-						else trim(CNTRY)
-				end CNTRY 
-		from bronze.erp_loc_a101;
-		-------------------------------------------------------------------------------------------------------------
-
-		-- Truncating the 'silver.erp_px_cat_g1_v2 ' table.
-		truncate table silver.erp_px_cat_g1_v2;
-
-		-- Inserting cleaned data into the 'silver.erp_px_cat_g1_v2 ' table.
-		insert into silver.erp_px_cat_g1_v2 
-		(
-				ID,
-				CAT,
-				SUBCAT,
-				MAINTENANCE
-		)
-		select *
-		from bronze.erp_px_cat_g1_v2;
-		---------------------------------------------------------------------------------------------------
+	-- Inserting cleaned data into the 'silver.erp_px_cat_g1_v2 ' table.
+	insert into silver.erp_px_cat_g1_v2 
+	(
+			ID,
+			CAT,
+			SUBCAT,
+			MAINTENANCE
+	)
+	select *
+	from bronze.erp_px_cat_g1_v2;
+	/* ------------------------------------------------------------------------------------------------------------- */
 end $$
 Delimiter ;
+
+call Load_Silver_Layer ();
