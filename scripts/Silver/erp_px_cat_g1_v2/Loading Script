@@ -1,1 +1,10 @@
-
+truncate table silver.erp_px_cat_g1_v2;
+insert into silver.erp_px_cat_g1_v2 
+(
+		ID,
+        CAT,
+        SUBCAT,
+        MAINTENANCE
+)
+select *
+from bronze.erp_px_cat_g1_v2;
