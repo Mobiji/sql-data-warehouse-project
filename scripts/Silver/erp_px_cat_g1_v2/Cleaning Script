@@ -1,1 +1,53 @@
+/*
+========================================================================================================================================
+		CLEANING AND STANDARDIZING THE 'ERP_PX_CAT_G1_V2' TABLE
+========================================================================================================================================
+----------------------------------------------------------------------------------------------------------------------------------------
+		Script Purpose:
+	          The following queries are responsible for checking the integrity of the 'bronze.erp_px_cat_g1_v2' table.
+	          Checks include:
+						- Looking for the presence of duplicates.
+                        - Looking for leading/trailling spaces.
+                        - Looking for the distinct values for the columns with low cardinality.
+----------------------------------------------------------------------------------------------------------------------------------------
+*/
 
+select *
+from bronze.erp_px_cat_g1_v2;
+
+-- Checking for leading/trailing spaces in the 'ID' column.
+select *
+from bronze.erp_px_cat_g1_v2
+where ID != trim(ID);
+-- Result: NIL.
+
+-- Checking for duplicates in the 'ID' column.
+select  ID, count(ID) cnt
+from bronze.erp_px_cat_g1_v2
+group by ID
+having count(ID) > 1;
+-- Result: NIL.
+-- For this column everything is perfect and no further cleaning is needed.
+/* 	According to my data integration model, I will later use this column to join this table 
+	to the 'silver.crm_prd_info' using the 'cat_ID' column.
+*/
+----------------------------------------------------------------------------------------------------------------------------------------
+
+select distinct CAT
+from bronze.erp_px_cat_g1_v2;
+-- Result: 'Accessories', 'Bikes', 'Clothing' and 'Components'.
+-- This column is clean so no need for any transformations.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+select count(distinct SUBCAT)
+from bronze.erp_px_cat_g1_v2;
+-- Result: 37 distinct subcategories.
+-- This column is clean so no need for any transformations.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+select distinct MAINTENANCE
+from bronze.erp_px_cat_g1_v2;
+
+-- Result: 'Yes' and 'No'.
+-- This column is also clean so no need for any transformations.
+----------------------------------------------------------------------------------------------------------------------------------------
