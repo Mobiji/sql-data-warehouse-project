@@ -1,1 +1,53 @@
+/*
+=================================================================================================================
+			QUALITY CHECKS ON THE SILVER.ERP_CUST_AZ12 TABLE.
+=================================================================================================================
+-----------------------------------------------------------------------------------------------------------------
+			Quality Checks include:
+					- Checking for leading and trailling spaces
+					- Checking for invalid data in the 'CID' column
+                    - Checking for invalid birthdates
+					- Checking for distinct values in the 'GEN' column
+-----------------------------------------------------------------------------------------------------------------
+*/
 
+select *
+from silver.erp_cust_az12;
+
+-- Test: Checking for leading/trailing spaces.
+-- Expectation: NIL.
+ select *
+from silver.erp_cust_az12
+where CID != trim(CID)
+or GEN != trim(GEN);
+
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Test: Checking for invalid data in the 'CID' column
+-- Expectation: NIL.
+select *
+from silver.erp_cust_az12
+where CID like 'NAS%';
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Checking for invalid birth dates
+-- Expectation: NIL.
+select 	CID,
+		BDATE,
+        timestampdiff(year, BDATE, now()) Age,
+        GEN
+from silver.erp_cust_az12
+where timestampdiff(year, BDATE, now()) >= 150
+	or timestampdiff(year, BDATE, now()) < 0;
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Checking the distinct values for the 'GEN' column.
+-- Expectation: 'Female', 'Male' or 'n/a'
+
+select distinct GEN
+from silver.erp_cust_az12;
+-- Result: 'Female', 'Male' or 'n/a'
+-----------------------------------------------------------------------------------------------------------------
