@@ -1,1 +1,46 @@
+/*
+==================================================================================================================
+			QUALITY CHECKS ON THE SILVER.ERP_LOC_A101 TABLE.
+==================================================================================================================
+------------------------------------------------------------------------------------------------------------------
+			Quality Checks include:
+					- Checking for leading and trailling spaces in both columns
+					- Checking for invalid data in the 'CID' column
+					- Checking for distinct values in the 'CNTRY' column
+------------------------------------------------------------------------------------------------------------------
+*/
 
+select *
+from silver.erp_loc_a101;
+
+-- Test: Checking for leading/trailling spaces in the 'CID' column.
+-- Expectation: NIL.
+select * 
+from silver.erp_loc_a101 
+where CID != trim(CID);
+-- Result: NIL.
+
+-- Test: Checking for the presence of a value in the CID column whose number of characters is not exactly 10.
+-- Expectation: NIL 
+select * 
+from (	select  replace(CID, '-', '') CID,    
+				CNTRY 
+		from silver.erp_loc_a101)  d
+where length(CID) != 10;
+-- Result: NIL.
+------------------------------------------------------------------------------------------------------------------
+
+-- Test: Checking for leading?trailling spaces in the 'CNTRY' column.
+-- Expectation: NIL.
+select *
+from silver.erp_loc_a101
+where CNTRY != trim(CNTRY);
+-- Result: NIL.
+
+-- Test: Checking for distinct values in the 'CNTRY' column.
+-- Expectation: 'Australia', 'United States', 'Canada', 'Germany', 'United Kingdom', 'France' and 'null'
+
+select distinct CNTRY
+from silver.erp_loc_a101;
+-- Result: 'Australia', 'United States', 'Canada', 'Germany', 'United Kingdom', 'France' and 'null'
+------------------------------------------------------------------------------------------------------------------
