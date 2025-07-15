@@ -1,1 +1,95 @@
+/*
+=======================================================================================================================================
+			QUALITY CHECKS ON THE SILVER.CRM_CUST_INFO TABLE.
+=======================================================================================================================================
+---------------------------------------------------------------------------------------------------------------------------------------
+			Quality Checks include:
+						- Checking for leading and trailling spaces
+            - Checking for duplicates
+            - Checking for unnormalized/unstandardized data.
+            - Checking for null values
+*/
 
+select *
+from silver.crm_cust_info; 
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for trailling/leading spaces in the 'cst_id' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_id != trim(cst_id);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for duplicates
+-- Expectation: NIL
+select cst_id, count(*)
+from silver.crm_cust_info
+group by cst_id
+having count(*) > 1;
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for trailling/leading spaces in the 'cst_key' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_key != trim(cst_key);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for trailling/leading spaces in the 'cst_firstname' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_firstname != trim(cst_firstname);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for trailling/leading spaces in the 'cst_firstname' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_lastname != trim(cst_lastname);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking for the presence of null customer IDs or customer IDs that are '0'.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_id is null or cst_id = 0;
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking the distinct values of the column 'cst_marital_status'.
+-- Expectation: 'Single', 'Married' or 'n/a'
+select distinct cst_marital_status
+from silver.crm_cust_info;
+-- Result: 'Single' , 'Married'
+
+-- Checking for trailling/leading spaces in the 'cst_marital_status' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_marital_status != trim(cst_marital_status);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- Checking the distinct values of the column 'cst_gndr'.
+-- Expectation: 'Male', 'Female' or 'n/a'
+select distinct cst_gndr
+from silver.crm_cust_info;
+-- Result: 'Single' , 'Married' , 'n/a'
+
+-- Checking for trailling/leading spaces in the 'cst_gndr' column.
+-- Expectation: NIL
+select *
+from silver.crm_cust_info
+where cst_gndr != trim(cst_gndr);
+-- Result: NIL
+----------------------------------------------------------------------------------------------------------------------------------------
+
+-- For the 'cst_create_date' column, it is by default a date column and hence will never accept any value short of a proper standard date.
+---------------------------------------------------------------------------------------------------------------------------------------- 
