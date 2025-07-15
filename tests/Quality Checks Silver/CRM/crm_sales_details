@@ -1,1 +1,93 @@
+/*
+=================================================================================================================
+			QUALITY CHECKS ON THE SILVER.CRM_SALES_DETAILS TABLE.
+=================================================================================================================
+-----------------------------------------------------------------------------------------------------------------
+			Quality Checks include:
+					- Checking for leading and trailling spaces
+					- Checking for duplicates
+                    - Checking for invalid dates
+					- Checking for negative sales, prices and quantities
+                    - Checking that the data adheres to the business logic of 'sales = quantity * pice'.
+-----------------------------------------------------------------------------------------------------------------
+*/
 
+select *
+from silver.crm_sales_details;
+
+-- Test: Checking for leading/trailling spaces in all columns one after the other.
+-- Expectation: NIL.
+
+select *
+from silver.crm_sales_details
+where sls_ord_num != trim(sls_ord_num)
+	or sls_prd_key != trim(sls_prd_key)
+	or sls_cust_id != trim(sls_cust_id)
+	or sls_order_dt != trim(sls_order_dt)
+	or sls_ship_dt != trim(sls_ship_dt)
+	or sls_due_dt != trim(sls_due_dt)
+	or sls_sales != trim(sls_sales)
+	or sls_quantity != trim(sls_quantity)
+	or sls_price != trim(sls_price);
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Test: Checking for duplicates
+-- Expectation: NIL.
+
+select *
+from
+(select *, row_number () 
+	over (partition by sls_ord_num, sls_prd_key, sls_cust_id, sls_order_dt, sls_ship_dt, sls_due_dt, 
+		sls_sales, sls_quantity, sls_price) row_num
+from silver.crm_sales_details) subquery
+where row_num > 1;
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+/* 	Checking the presence of dates that dont exactly have 10 digits in the 
+	'sls_order_dt', 'sls_ship_dt' and 'sls_due_dt' column. (10 due to the hiphens)
+*/
+-- Expectation: NIL.
+
+select *
+from silver.crm_sales_details
+where length(sls_order_dt) != 10
+	or length(sls_ship_dt) != 10
+	or length(sls_due_dt) != 10;
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Checking for invalid dates. 
+/* 	
+	These are dates that exist in the future or due dates that come before the shipping date 
+	or shipping dates that come before the order dates)
+*/
+-- Expectation: NIL.
+select *
+from silver.crm_sales_details
+where sls_order_dt > now() 
+	OR sls_order_dt > now() 
+    OR sls_due_dt > now();
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Test: Checking if there are negative values in the 'sls_sales', 'sls_quantity' and 'sls_price' columns.
+-- Expectation: NIL.
+
+select *
+from silver.crm_sales_details
+where sls_sales < 0
+or sls_quantity < 0
+or sls_price < 0;
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
+
+-- Test: Checking if the 'sls_sales' column adheres to the business logic, 'sales = quantity * pice'.
+-- Expectation: NIL.
+
+select *
+from silver.crm_sales_details
+where sls_sales != sls_quantity * sls_price;
+-- Result: NIL.
+-----------------------------------------------------------------------------------------------------------------
