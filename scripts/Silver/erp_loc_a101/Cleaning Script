@@ -21,8 +21,10 @@ from bronze.erp_loc_a101
 where CID != trim(CID);
 -- Result: NIL.
 
-/* 	Referring to my data integration model, I can see that I will use this column (CID) to join it to the 'silver.crm_cust_info' table.
-	But when I compare this 'CID' column with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID' column 
+/*
+  - Referring to my data integration model, I can see that I will use this column (CID) to join it to 
+    the 'silver.crm_cust_info' table.
+  - But when I compare this 'CID' column with the 'silver.crm_cust_info.cst_key' column, I see that in this 'CID' column 
     there is an extra character (a hiphen) after the 2nd character in each value in the field which will cause errors 
     when I attempt to join the 2 tables together in future.
   - In order to facilitate the future join, I will have to extract the '-' part out.
