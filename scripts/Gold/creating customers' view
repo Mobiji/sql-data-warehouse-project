@@ -1,1 +1,211 @@
+/*
+=============================================================================================================
+		CREATING THE CUSTOMER DIMENSION VIEW
+=============================================================================================================
+		Script Purpose:
+			- This script goeas ahead to aggregate the customer informations into a single view.
+            - It is also responsible for mapping the technical column names into more friendly names.
+            - It's source system is the Silver Schema.
+*/
 
+/* 
+	According to my data integration model, I can see that in order to create this customer dimension view,
+	I will need to join the tables 'silver.erp_cust_az12' and 'silver.erp_loc_a101' to the table
+    'silver.crm_cust_info'. This table ('silver.crm_cust_info') is our master customer information table.
+*/
+select *
+from silver.crm_cust_info;
+
+select *
+from silver.erp_cust_az12;
+
+/*
+	So the 'silver.crm_cust_info' table will be our main table. I will the join the 'silver.erp_cust_az12'
+    table to bring in the customer's birth dates and their gender.
+*/
+
+select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        CI.cst_gndr,
+        CI.cst_create_date,
+        CA.BDATE,
+        CA.GEN
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID;
+    
+/*
+	- 	At this point, everything about our customers has been integrated into one. But both the joined tables
+		have a column that gives info about the gender of a customer.
+    - 	So now I will have to compare both and merge them into one comprehensive gender column.
+*/
+
+with cte_name as 
+(select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        CI.cst_gndr,
+        CI.cst_create_date,
+        CA.BDATE,
+        CA.GEN
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID)
+    
+select distinct
+	cst_gndr,
+	GEN
+from cte_name
+where trim(cst_gndr) != trim(GEN) or trim(cst_gndr) in ('n/a', null);
+-- Result: There are 7 different combinations of both the gender column from the 2 tables.
+/*
+	- In order to sort out this gender issue, the best way is to first consult the source system experts.
+    - But since I have no contact with the source system experts, I will use the 'silver.crm_cust_info'
+    table as the master table and only use values from the 2nd table if the master table's value is 'n/a'.
+    - And if in case the 2nd table's value is also a 'n/a' or a null, I will replace with a 'n/a'.
+*/
+
+select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        CI.cst_gndr,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end Nucst_gndr,
+        CI.cst_create_date,
+        CA.BDATE,
+        CA.GEN
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID;
+    
+-- In order to test if our logic is error-tight, I will use the following query.
+with cte_namee as 
+(
+select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        CI.cst_gndr,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end Nucst_gndr,
+        CI.cst_create_date,
+        CA.BDATE,
+        CA.GEN
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID
+)
+select distinct
+	cst_gndr,
+    Nucst_gndr,
+	GEN
+from cte_namee
+where cst_gndr != GEN or cst_gndr in ('n/a', null);
+-- Result: The 2 gender columns have been successfully integrated into one comprehensive gender column.
+-- Now I can get rid of the 2 original gender column from the output.
+
+select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end cst_gndr,
+        CI.cst_create_date,
+        CA.BDATE
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID;
+
+/*
+=============================================================================================================
+*/
+
+-- Joining the 'silver.erp_loc_a101' table to my latest output to bring in the location informations. 
+
+select 
+		CI.cst_id,
+        CI.cst_key,
+        CI.cst_firstname,
+        CI.cst_lastname,
+        CI.cst_marital_status,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end cst_gndr,
+        CI.cst_create_date,
+        ifnull(CA.BDATE, 'n/a') BDATE,
+        ifnull(LA.CNTRY, 'n/a') CNTRY
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID
+left join silver.erp_loc_a101 LA
+	on CI.cst_key = LA.CID;
+/* 
+	- At this point, I now havee all the available customer information in one central output.
+	- Now, I am going to change the columns to more friendlier names.
+    - Additionally, I am going to create a surrogate key for this output and also 
+		re-arrange the columns to a more meaningful arrangement.
+*/
+
+select	row_number () over (order by CI.cst_id) customer_key,
+		CI.cst_id customer_id,
+        CI.cst_key customer_number,
+        concat(CI.cst_firstname, ' ', CI.cst_lastname) customer_name,
+        ifnull(LA.CNTRY, 'n/a') country,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end gender,
+		CI.cst_marital_status marital_status,
+        ifnull(CA.BDATE, 'n/a') birth_date,
+        CI.cst_create_date register_date
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID
+left join silver.erp_loc_a101 LA
+	on CI.cst_key = LA.CID;
+    
+-- Now our data is ready to be saved as a view in the Gold layer.
+
+/*
+=============================================================================================================
+*/
+
+-- Creatimg the 'dim_customers' view:
+
+create view dim_customers as
+(select	row_number () over (order by CI.cst_id) customer_key,
+		CI.cst_id customer_id,
+        CI.cst_key customer_number,
+        concat(CI.cst_firstname, ' ', CI.cst_lastname) customer_name,
+        ifnull(LA.CNTRY, 'n/a') country,
+        case 	when CI.cst_gndr != 'n/a' then CI.cst_gndr
+				else ifnull(CA.GEN, 'n/a')
+		end gender,
+		CI.cst_marital_status marital_status,
+        ifnull(CA.BDATE, 'n/a') birth_date,
+        CI.cst_create_date register_date
+from silver.crm_cust_info CI
+left join silver.erp_cust_az12 CA
+	on CI.cst_key = CA.CID
+left join silver.erp_loc_a101 LA
+	on CI.cst_key = LA.CID);
+
+/*
+=============================================================================================================
+*/
