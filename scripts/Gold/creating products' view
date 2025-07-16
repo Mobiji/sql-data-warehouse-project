@@ -10,55 +10,76 @@
 */
 
 /* 
-    - According to my data integration model, I can see that in order to create this product dimension view,
+    - According to my data integration model, I can see that in order to create the product dimension view,
       I will need to join the table 'silver.erp_px_cat_g1_v2' to the table 'silver.crm_prd_info'. 
     - This table ('silver.crm_prd_info') is our master customer information table.
+    - There is a 'cat_ID' in the table silver.crm_prd_info which is not found in the 'erp_px_cat_g1_v2' table.
+    - That is why when I join the 2 tables I can see nulls in the output. For these records, since we cannot
+      contact the source system experts to gather the missing info, we can make an educated guess to come up
+      with their respective 'CAT' and 'SUBCAT' values.
+    - For the said records, their 'cat_ID' reads 'CO-PE'. And from other records I can see that the first 2
+      letters stands for 'Components' which is the Category and the last 2 letters stands for 'Pedal' which
+      is the subcategory). So I am going to replace the nulls with 'Components' and 'Pedal' for the 'CAT'
+      and 'SUBCAT' columns respectively.
+    - There are also nulls in the 'MAINTENANCE' column. These are also found in the same records which had 
+      their 'CAT' and 'SUBCAT' columns as nulls. I will go ahead and replace these with 'n/a'.
+    - Next, there is historization in my data. (Versions of the same product). I went ahead and chose to
+      work only with the current version of the products. So I will filter out all the prior versions and 
+      subsequently remove the 'prd_end_dt' entirely because all it's values are nulls.
+    - Finally, I will rename all the columns to more friendly names and also create a surrogate key for 
+      the final output named 'product_key'.
 */
-
-select 	row_number () over () product_key,
-		PI.prd_id,
-		PI.cat_ID,
-        PI.prd_key,
-        PI.prd_nm,
+select 	row_number () over (order by PI.prd_start_dt, PI.prd_key) product_key,
+		PI.prd_id product_id,
+		PI.cat_ID category_id,
+        PI.prd_key product_number,
+        PI.prd_nm product_name,
         case 	when PCGV.CAT is not null then PCGV.CAT 
 				else 'Components'
-		end CAT,
+		end category,
         case 	when PCGV.SUBCAT is not null then PCGV.SUBCAT
 				else 'Pedal'
-		end SUBCAT,
-        PI.prd_cost,
-        PI.prd_line,
-        PI.prd_start_dt,
-        ifnull(PI.prd_end_dt, 'Current_Version') prd_end_dt,
+		end subcategory,
         case 	when ifnull(PCGV.MAINTENANCE, '') = '' then 'n/a'
 				else ifnull(PCGV.MAINTENANCE, '')
-		end MAINTENANCE
-from silver.crm_prd_info PI
-left join silver.erp_px_cat_g1_v2 PCGV
-	on PI.cat_ID = PCGV.ID;
-    
-
-create view gold.dim_products as 
-(
-select 	row_number () over () product_key,
-		PI.prd_id,
-		PI.cat_ID,
-        PI.prd_key,
-        PI.prd_nm,
-        case 	when PCGV.CAT is not null then PCGV.CAT 
-				else 'Components'
-		end CAT,
-        case 	when PCGV.SUBCAT is not null then PCGV.SUBCAT
-				else 'Pedal'
-		end SUBCAT,
-        PI.prd_cost,
-        PI.prd_line,
-        PI.prd_start_dt,
-        PI.prd_end_dt,
-        case 	when ifnull(PCGV.MAINTENANCE, '') = '' then 'n/a'
-				else ifnull(PCGV.MAINTENANCE, '')
-		end MAINTENANCE
+		end maintenance,
+        PI.prd_cost cost,
+        PI.prd_line production_line,
+        PI.prd_start_dt prd_start_date
 from silver.crm_prd_info PI
 left join silver.erp_px_cat_g1_v2 PCGV
 	on PI.cat_ID = PCGV.ID
+where PI.prd_end_dt is null;
+/*
+====================================================================================================================
+*/    
+
+-- Creating the view in the gold layer: 
+
+create view gold.dim_products as 
+(
+select 	row_number () over (order by PI.prd_start_dt, PI.prd_key) product_key,
+		PI.prd_id product_id,
+		PI.cat_ID category_id,
+        PI.prd_key product_number,
+        PI.prd_nm product_name,
+        case 	when PCGV.CAT is not null then PCGV.CAT 
+				else 'Components'
+		end category,
+        case 	when PCGV.SUBCAT is not null then PCGV.SUBCAT
+				else 'Pedal'
+		end subcategory,
+        case 	when ifnull(PCGV.MAINTENANCE, '') = '' then 'n/a'
+				else ifnull(PCGV.MAINTENANCE, '')
+		end maintenance,
+        PI.prd_cost cost,
+        PI.prd_line production_line,
+        PI.prd_start_dt prd_start_date
+from silver.crm_prd_info PI
+left join silver.erp_px_cat_g1_v2 PCGV
+	on PI.cat_ID = PCGV.ID
+where PI.prd_end_dt is null
 );
+/*
+====================================================================================================================
+*/
