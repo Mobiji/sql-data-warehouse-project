@@ -1,17 +1,20 @@
 /*
-=============================================================================================================
-		CREATING THE CUSTOMER DIMENSION VIEW
-=============================================================================================================
-		Script Purpose:
-			- This script goeas ahead to aggregate the customer informations into a single view.
-            - It is also responsible for mapping the technical column names into more friendly names.
-            - It's source system is the Silver Schema.
+====================================================================================================================
+	CREATING THE CUSTOMER DIMENSION VIEW
+====================================================================================================================
+	Script Purpose:
+		- This script goes ahead to aggregate the customer informations from the silver schema.
+		- It then goes ahead to integrate the gender info from 2 tables into one comprehensive column.
+            	- It is also responsible for mapping the technical column names into more friendly names.
+		- It finally inserts the final output into a view in the gold schema.
+====================================================================================================================
 */
 
 /* 
-	According to my data integration model, I can see that in order to create this customer dimension view,
-	I will need to join the tables 'silver.erp_cust_az12' and 'silver.erp_loc_a101' to the table
-    'silver.crm_cust_info'. This table ('silver.crm_cust_info') is our master customer information table.
+    - According to my data integration model, I can see that in order to create this customer dimension view,
+      I will need to join the tables 'silver.erp_cust_az12' and 'silver.erp_loc_a101' to the table
+      'silver.crm_cust_info'. 
+    - This table ('silver.crm_cust_info') is our master customer information table.
 */
 select *
 from silver.crm_cust_info;
@@ -20,12 +23,12 @@ select *
 from silver.erp_cust_az12;
 
 /*
-	So the 'silver.crm_cust_info' table will be our main table. I will the join the 'silver.erp_cust_az12'
-    table to bring in the customer's birth dates and their gender.
+    - So the 'silver.crm_cust_info' table will be our main table. I will the join the 'silver.erp_cust_az12'
+      table to bring in the customer's birth dates and their gender.
 */
 
 select 
-		CI.cst_id,
+	CI.cst_id,
         CI.cst_key,
         CI.cst_firstname,
         CI.cst_lastname,
@@ -39,9 +42,9 @@ left join silver.erp_cust_az12 CA
 	on CI.cst_key = CA.CID;
     
 /*
-	- 	At this point, everything about our customers has been integrated into one. But both the joined tables
-		have a column that gives info about the gender of a customer.
-    - 	So now I will have to compare both and merge them into one comprehensive gender column.
+    - At this point, everything about our customers has been integrated into one. But both the joined tables
+      have a column that gives info about the gender of a customer.
+    - So now I will have to compare both and merge them into one comprehensive gender column.
 */
 
 with cte_name as 
@@ -66,9 +69,9 @@ from cte_name
 where trim(cst_gndr) != trim(GEN) or trim(cst_gndr) in ('n/a', null);
 -- Result: There are 7 different combinations of both the gender column from the 2 tables.
 /*
-	- In order to sort out this gender issue, the best way is to first consult the source system experts.
+    - In order to sort out this gender issue, the best way is to first consult the source system experts.
     - But since I have no contact with the source system experts, I will use the 'silver.crm_cust_info'
-    table as the master table and only use values from the 2nd table if the master table's value is 'n/a'.
+      table as the master table and only use values from the 2nd table if the master table's value is 'n/a'.
     - And if in case the 2nd table's value is also a 'n/a' or a null, I will replace with a 'n/a'.
 */
 
@@ -134,7 +137,7 @@ left join silver.erp_cust_az12 CA
 	on CI.cst_key = CA.CID;
 
 /*
-=============================================================================================================
+====================================================================================================================
 */
 
 -- Joining the 'silver.erp_loc_a101' table to my latest output to bring in the location informations. 
@@ -183,7 +186,7 @@ left join silver.erp_loc_a101 LA
 -- Now our data is ready to be saved as a view in the Gold layer.
 
 /*
-=============================================================================================================
+====================================================================================================================
 */
 
 -- Creatimg the 'dim_customers' view:
@@ -207,5 +210,5 @@ left join silver.erp_loc_a101 LA
 	on CI.cst_key = LA.CID);
 
 /*
-=============================================================================================================
+====================================================================================================================
 */
