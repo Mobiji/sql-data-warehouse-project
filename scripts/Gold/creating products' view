@@ -1,1 +1,64 @@
+/*
+====================================================================================================================
+	CREATING THE PRODUCT DIMENSION VIEW
+====================================================================================================================
+	Script Purpose:
+		- This script goes ahead to aggregate the product informations from the silver schema.
+		- It is also responsible for mapping the technical column names into more friendly names.
+		- It finally inserts the final output into a view in the gold schema.
+====================================================================================================================
+*/
 
+/* 
+    - According to my data integration model, I can see that in order to create this product dimension view,
+      I will need to join the table 'silver.erp_px_cat_g1_v2' to the table 'silver.crm_prd_info'. 
+    - This table ('silver.crm_prd_info') is our master customer information table.
+*/
+
+select 	row_number () over () product_key,
+		PI.prd_id,
+		PI.cat_ID,
+        PI.prd_key,
+        PI.prd_nm,
+        case 	when PCGV.CAT is not null then PCGV.CAT 
+				else 'Components'
+		end CAT,
+        case 	when PCGV.SUBCAT is not null then PCGV.SUBCAT
+				else 'Pedal'
+		end SUBCAT,
+        PI.prd_cost,
+        PI.prd_line,
+        PI.prd_start_dt,
+        ifnull(PI.prd_end_dt, 'Current_Version') prd_end_dt,
+        case 	when ifnull(PCGV.MAINTENANCE, '') = '' then 'n/a'
+				else ifnull(PCGV.MAINTENANCE, '')
+		end MAINTENANCE
+from silver.crm_prd_info PI
+left join silver.erp_px_cat_g1_v2 PCGV
+	on PI.cat_ID = PCGV.ID;
+    
+
+create view gold.dim_products as 
+(
+select 	row_number () over () product_key,
+		PI.prd_id,
+		PI.cat_ID,
+        PI.prd_key,
+        PI.prd_nm,
+        case 	when PCGV.CAT is not null then PCGV.CAT 
+				else 'Components'
+		end CAT,
+        case 	when PCGV.SUBCAT is not null then PCGV.SUBCAT
+				else 'Pedal'
+		end SUBCAT,
+        PI.prd_cost,
+        PI.prd_line,
+        PI.prd_start_dt,
+        PI.prd_end_dt,
+        case 	when ifnull(PCGV.MAINTENANCE, '') = '' then 'n/a'
+				else ifnull(PCGV.MAINTENANCE, '')
+		end MAINTENANCE
+from silver.crm_prd_info PI
+left join silver.erp_px_cat_g1_v2 PCGV
+	on PI.cat_ID = PCGV.ID
+);
