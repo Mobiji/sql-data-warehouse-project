@@ -54,8 +54,10 @@ where PI.prd_end_dt is null;
 ====================================================================================================================
 */    
 
--- Creating the view in the gold layer: 
+-- Dropping the view first before inserting fresh data into it:
+drop view if exists gold.dim_products;
 
+-- Creating the view in the gold layer:
 create view gold.dim_products as 
 (
 select 	row_number () over (order by PI.prd_start_dt, PI.prd_key) product_key,
