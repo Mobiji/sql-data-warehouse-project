@@ -192,7 +192,7 @@ left join silver.erp_loc_a101 LA
 -- Dropping the view first before inserting fresh data into it:
 drop view if exists gold.dim_customers;
 
--- Creatimg the 'dim_customers' view:
+-- Inserting the output in to the gold layer:
 create view gold.dim_customers as
 (select	row_number () over (order by CI.cst_id) customer_key,
 		CI.cst_id customer_id,
