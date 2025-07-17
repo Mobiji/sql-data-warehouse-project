@@ -44,10 +44,11 @@ left join gold.dim_products DP
 /*
 ===========================================================================================================================
 */
+-- Dropping the view first before inserting fresh data into it:
+drop view if exists gold.fact_sales;
 
 -- Inserting the output into a view in the gold layer:
-
-create view fact_sales as 
+create view gold.fact_sales as 
 (
 select 	SD.sls_ord_num order_number,
         DP.product_key,
