@@ -5,7 +5,7 @@
 	Script Purpose:
 		- This script goes ahead to aggregate the customer informations from the silver schema.
 		- It then goes ahead to integrate the gender info from 2 tables into one comprehensive column.
-            	- It is also responsible for mapping the technical column names into more friendly names.
+		- It is also responsible for mapping the technical column names into more friendly names.
 		- It finally inserts the final output into a view in the gold schema.
 ====================================================================================================================
 */
@@ -189,8 +189,10 @@ left join silver.erp_loc_a101 LA
 ====================================================================================================================
 */
 
--- Creatimg the 'dim_customers' view:
+-- Dropping the view first before inserting fresh data into it:
+drop view if exists dim_customers;
 
+-- Creatimg the 'dim_customers' view:
 create view dim_customers as
 (select	row_number () over (order by CI.cst_id) customer_key,
 		CI.cst_id customer_id,
