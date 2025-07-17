@@ -1,1 +1,60 @@
+/*
+===============================================================================
+	Quality Checks for the gold layer.
+===============================================================================
+	Script Purpose:
+		This script performs quality checks to validate the integrity, consistency, 
+		and accuracy of the Gold Layer. These checks ensure:
+		- Uniqueness of surrogate keys in dimension tables.
+		- Referential integrity between fact and dimension tables.
+		- Validation of relationships in the data model for analytical purposes.
+===============================================================================
+*/
 
+-- Test: checking for nulls in the incoming columns that may arise due to the joins.
+-- Expectation: NIL.
+select *
+from gold.dim_customers
+where birth_date is null or country is null;
+-- Result: NIL.
+/*
+=============================================================================================================
+*/
+
+-- Test: Checking for uniqueness of customer_key.
+-- Expectation: NIL.
+
+select customer_key, count(*) cnt
+from gold.dim_customers
+group by customer_key
+having count(*) > 1;
+-- Result: NIL.
+/*
+=============================================================================================================
+*/
+
+-- Test: Checking for uniqueness of product_key.
+-- Expectation: NIL.
+
+select product_key, count(*) cnt
+from gold.dim_products
+group by product_key
+having count(*) > 1;
+-- Result: NIL.
+/*
+=============================================================================================================
+*/
+
+-- Test: Checking the data model connectivity between fact and the dimensions
+-- Expectation: zero nulls in the surrogate keys.
+select *
+from gold.fact_sales FS
+left join gold.dim_customers DC
+	on FS.customer_key = DC.customer_key
+left join gold.dim_products DP
+	on FS.product_key = DP.product_key
+where DC.customer_key is null or DP.product_key is null;
+-- Result: NIL (indicating that the connectivity is working perfectly)
+/*
+=============================================================================================================
+*/
