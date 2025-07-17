@@ -1,1 +1,69 @@
+/*
+===========================================================================================================================
+	CREATING THE SALES DIMENSION VIEW
+===========================================================================================================================
+	Script Purpose:
+		- It is responsible for bringing in surrogate keys from the dimensions.
+		- It is also responsible for mapping the technical column names into more friendly names.
+		- It finally inserts the final output into a view in the gold schema.
+===========================================================================================================================
+*/
 
+select *
+from silver.crm_sales_details;
+
+/*
+	- In this table, there are no data aggregations to do nor any other table containing sales informations to join
+      it with. So now I have to identify if it is a fact or a dimension. And by the looks of its contents, it is a
+      fact table because:
+		* It entails events.
+        * It contains multiple IDs from multiple dimensions.
+        * It contains date info.
+        * It contains measures and numbers.
+	- In essence, it is able to answer questions like, 'How much?' and 'How many?'.
+    - Now, in order to be able to join the other dimensions to this fact, I will utilize the surrogate keys that
+      that I generated for the dimension tables. And in order to utilize them, I will have to join this fact with
+      the dimensions and bring in the surrogate keys to replace the 'sls_prd_key' and 'sls_cust_id' column specifically.
+	- After that, I am going to rename the columns to more friendlier names and finally insert the output in the gold layer.
+*/
+
+select 	SD.sls_ord_num order_number,
+        DP.product_key,
+        DC.customer_key,
+        SD.sls_order_dt order_date,
+        SD.sls_ship_dt shipping_date,
+        SD.sls_due_dt due_date,
+        SD.sls_sales sales_amount,
+        SD.sls_quantity quantity,
+        SD.sls_price price
+from silver.crm_sales_details SD
+left join gold.dim_customers DC
+	on SD.sls_cust_id = DC.customer_id
+left join gold.dim_products DP
+	on SD.sls_prd_key = DP.product_number;
+/*
+===========================================================================================================================
+*/
+
+-- Inserting the output into a view in the gold layer:
+
+create view fact_sales as 
+(
+select 	SD.sls_ord_num order_number,
+        DP.product_key,
+        DC.customer_key,
+        SD.sls_order_dt order_date,
+        SD.sls_ship_dt shipping_date,
+        SD.sls_due_dt due_date,
+        SD.sls_sales sales_amount,
+        SD.sls_quantity quantity,
+        SD.sls_price price
+from silver.crm_sales_details SD
+left join gold.dim_customers DC
+	on SD.sls_cust_id = DC.customer_id
+left join gold.dim_products DP
+	on SD.sls_prd_key = DP.product_number
+);
+/*
+===========================================================================================================================
+*/
