@@ -11,13 +11,13 @@ The Gold Layer is the business-level data representation, structured to support 
 
 | Column Name      | Data Type     | Description                                                                                   |
 |------------------|---------------|-----------------------------------------------------------------------------------------------|
-| customer_key     | bignt UN      | Surrogate key uniquely identifying each customer record in the dimension table.           |
+| customer_key     | bigint UN     | Surrogate key uniquely identifying each customer record in the dimension table.           |
 | customer_id      | INT           | Unique numerical identifier assigned to each customer.                                        |
 | customer_number  |  VARCHAR(50)  | Alphanumeric identifier representing the customer, used for tracking and referencing.         |
 | customer_name    |  VARCHAR(101) | The customer's full name, as recorded in the system.                                          |
 | country          |  VARCHAR(50)  | The country of residence for the customer (e.g., 'Australia').                                |
+| gender           |  VARCHAR(50)  | The gender of the customer (e.g., 'Male', 'Female', 'n/a'). |   
 | marital_status   |  VARCHAR(50)  | The marital status of the customer (e.g., 'Married', 'Single').                               |
-| gender           |  VARCHAR(50)  | The gender of the customer (e.g., 'Male', 'Female', 'n/a').                                   |
 | birthdate        |  VARCHAR(10)  | The date of birth of the customer, formatted as YYYY-MM-DD (e.g., 1971-10-06).                |
 | register_date    |  DATE         | The date and time when the customer record was created in the system|
 
