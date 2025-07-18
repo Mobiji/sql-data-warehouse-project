@@ -152,7 +152,7 @@ select
 				else ifnull(CA.GEN, 'n/a')
 		end cst_gndr,
         CI.cst_create_date,
-        ifnull(CA.BDATE, 'n/a') BDATE,
+        CA.BDATE,
         ifnull(LA.CNTRY, 'n/a') CNTRY
 from silver.crm_cust_info CI
 left join silver.erp_cust_az12 CA
@@ -175,7 +175,7 @@ select	row_number () over (order by CI.cst_id) customer_key,
 				else ifnull(CA.GEN, 'n/a')
 		end gender,
 		CI.cst_marital_status marital_status,
-        ifnull(CA.BDATE, 'n/a') birth_date,
+        CA.BDATE birth_date,
         CI.cst_create_date register_date
 from silver.crm_cust_info CI
 left join silver.erp_cust_az12 CA
@@ -203,7 +203,7 @@ create view gold.dim_customers as
 				else ifnull(CA.GEN, 'n/a')
 		end gender,
 		CI.cst_marital_status marital_status,
-        ifnull(CA.BDATE, 'n/a') birth_date,
+        CA.BDATE birth_date,
         CI.cst_create_date register_date
 from silver.crm_cust_info CI
 left join silver.erp_cust_az12 CA
