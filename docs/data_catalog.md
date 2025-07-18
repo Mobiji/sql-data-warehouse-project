@@ -32,7 +32,7 @@ The Gold Layer is the business-level data representation, structured to support 
 | product_key         | bigint UN     | Surrogate key uniquely identifying each product record in the product dimension table.         |
 | product_id          | INT           | A unique identifier assigned to the product for internal tracking and referencing.            |
 | category_id         |  VARCHAR(50)  | A structured alphanumeric code representing the product, often used for categorization or inventory. |
-| product_number      |  VARCHAR(50)  | A unique identifier for each product category                     |
+| product_number      |  VARCHAR(50)  | A unique identifier for each product. i.e. 'BK-M82B-38'                  |
 | product_name        |  VARCHAR(50)  | Descriptive name of the product, including key details such as type, color, and size.         |
 | category            |  VARCHAR(50)  | The broader classification of the product (e.g., Bikes, Components) to group related items.  |
 | subcategory         |  VARCHAR(50)  | A more detailed classification of the product within the category, such as product type.   |
